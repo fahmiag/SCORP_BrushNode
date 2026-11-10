@@ -1,5 +1,7 @@
 #pragma once
-namespace App {
+
+namespace App 
+{
 	void begin();
 	void update();
 }

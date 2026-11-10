@@ -1,9 +1,9 @@
 #pragma once
 #include <Arduino.h>
 namespace Config {
-	constexpr uint8_t motorPwm = 5, motorDir = 4;
-	constexpr uint8_t axisPwm = 6, axisDir = 7;
-	constexpr uint8_t topLimit = 8, bottomLimit = 9;
+	constexpr uint8_t motorPwm = 9, motorDir = 8;
+	constexpr uint8_t axisPwm = 10, axisDir = 11;
+	constexpr uint8_t topLimit = A0, bottomLimit = A1;
 	constexpr uint8_t forwardLevel = HIGH, upLevel = HIGH;
 	constexpr unsigned long baud = 115200;
 	constexpr unsigned long communicationTimeoutMs = 3000;

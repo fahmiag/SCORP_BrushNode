@@ -6,12 +6,22 @@ Arduino UNO R4 Minima, two Cytron MDD20A PWM/DIR channels, automatic-direction R
 
 | Signal | Pin |
 | --- | --- |
-| Motor PWM / DIR | D5 / D4 |
-| Axis PWM / DIR | D6 / D7 |
-| Top / bottom limit | D8 / D9 |
+| Motor PWM / DIR | D9 / D8 |
+| Axis PWM / DIR | D10 / D11 |
+| Top / bottom limit | A0 / A1 |
 | RS485 transceiver RO / DI | D0 (RX) / D1 (TX) |
 
 Connect each normally open limit switch between its input and ground. Internal pullups are enabled. Connect controller, driver logic and transceiver grounds as required by their interfaces. Use an automatic transmit-direction RS485 module; the firmware does not control DE/RE. Confirm module voltage compatibility before connecting it.
+
+## Watchdog and reset/startup inputs
+
+The UNO R4 hardware watchdog starts after the motor control pins are driven low, before application initialization. `Config::watchdogTimeoutMs` requests 1000 ms; the WDT library rounds up to a supported hardware interval. Only a completed application loop refreshes the watchdog. A stalled loop causes a hardware reset; the communication timeout remains a separate fault mechanism. If watchdog initialization fails, firmware reports `FAULT WATCHDOG_INIT` and stays stopped without accepting commands. After a reset, motion is not restored: a new command is required.
+
+Firmware cannot drive pins during reset, bootloader execution or loss of MCU power. Fit an external 10 kΩ pull-down from **each driver PWM and DIR input** to driver signal ground, preferably at the driver connector (four resistors total). PWM low is the required stop command; DIR low provides a defined direction while stopped. Verify these pull-downs keep the actual driver inputs below its specified low threshold with the MCU disconnected and with either supply powered first. Do not rely on software or MCU internal pulls for the reset interval. For the MDD20A, PWM low brakes the motor; it does not disconnect motor power.
+
+At the start of `setup()`, both PWM pins are set low before either DIR pin is configured. Motor initialization also starts with zero PWM and a known low direction. The pin table above matches `Config.h`; update wiring and pull-down connections if those settings change.
+
+Hardware verification (with motors unloaded): scope both PWM inputs during power-on, reset-button hold/release, firmware upload and MCU power loss while the driver remains powered. They must remain low until an explicit motion command. To test watchdog recovery, temporarily stall the main loop after starting motion, without refreshing WDT; verify a reset within the hardware interval and zero PWM throughout reboot, with no automatic restart. Remove the stall before normal operation. A software watchdog does not stop PWM immediately when code hangs; PWM may remain active until the watchdog reset. Use an independent driver inhibit or emergency-stop circuit if that interval is unacceptable.
 
 ## Protocol
 

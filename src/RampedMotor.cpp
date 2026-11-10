@@ -2,10 +2,13 @@
 #include "Config.h"
 
 void RampedMotor::begin() {
+    // Initialize every start with zero PWM and a known direction.
+    direction = LOW;
+    requestedDirection = LOW;
     digitalWrite(pwmPin, LOW);
     pinMode(pwmPin, OUTPUT);
-    pinMode(dirPin, OUTPUT);
     digitalWrite(dirPin, direction);
+    pinMode(dirPin, OUTPUT);
     stop();
 }
 void RampedMotor::run(uint8_t nextDirection, uint8_t speed) {

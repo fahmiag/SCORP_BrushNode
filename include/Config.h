@@ -1,0 +1,16 @@
+#pragma once
+#include <Arduino.h>
+namespace Config {
+	constexpr uint8_t motorPwm = 5, motorDir = 4;
+	constexpr uint8_t axisPwm = 6, axisDir = 7;
+	constexpr uint8_t topLimit = 8, bottomLimit = 9;
+	constexpr uint8_t forwardLevel = HIGH, upLevel = HIGH;
+	constexpr unsigned long baud = 115200;
+	constexpr unsigned long communicationTimeoutMs = 3000;
+	constexpr unsigned long travelTimeoutMs = 120000;
+	constexpr unsigned long topWaitMs = 2000;
+	constexpr unsigned long rampMs = 1000; // 0 to full PWM
+	constexpr unsigned long reversalPauseMs = 100;
+	constexpr uint8_t brushSpeed = 255, axisSpeed = 255;
+}
+

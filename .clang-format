@@ -1,0 +1,8 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+AccessModifierOffset: 0
+NamespaceIndentation: All
+BreakBeforeBraces: Allman
+AllowShortFunctionsOnASingleLine: None

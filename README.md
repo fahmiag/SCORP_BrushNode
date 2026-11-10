@@ -1,6 +1,6 @@
 # Brush motor node
 
-Arduino UNO R4 Minima, two Cytron MDD20A PWM/DIR channels, automatic-direction RS485 transceiver. Settings are in `Config` in `src/main.cpp`.
+Arduino UNO R4 Minima, two Cytron MDD20A PWM/DIR channels, automatic-direction RS485 transceiver. Settings are in `include/Config.h`.
 
 ## Placeholder wiring
 
@@ -35,4 +35,17 @@ Each axis travel leg has its own 120-second timeout. Travel timeout or simultane
 
 Successful commands reply `OK`, status replies `STATUS ...`, invalid/rejected commands reply `ERR ...`. Faults emit `FAULT ...`, and arrival at the bottom emits `EVENT CYCLE_DONE`; the master must accommodate these asynchronous messages.
 
-Verify direction polarity with unloaded motors before operation; change `forwardLevel` and `upLevel` if required. Both motors currently use full PWM (255). Physical travel, wiring, motor reversal and transceiver timing require hardware verification. Normally open switches cannot reveal a broken wire; the travel timeout bounds a missing-switch run.
+Verify direction polarity with unloaded motors before operation; change `forwardLevel` and `upLevel` if required. Both motors ramp to configurable target PWM (default 255). Physical travel, wiring, motor reversal and transceiver timing require hardware verification. Normally open switches cannot reveal a broken wire; the travel timeout bounds a missing-switch run.
+
+## Source layout and ramp settings
+
+- `main.cpp`: Arduino entry points.
+- `App.cpp`: serial commands, heartbeat and application scheduling.
+- `Statemachine.cpp`: axis sequence, limit switches and fault handling.
+- `AxisMotor.cpp` / `brushMotor.cpp`: separate motor instances and interfaces.
+- `RampedMotor.cpp`: shared nonblocking PWM ramp and reversal handling.
+- `include/Config.h`: pins, direction polarity, speed and timing settings.
+
+Both motors ramp linearly from zero to full PWM over `rampMs` (default 1000 ms). `axisSpeed` and `brushSpeed` set targets from 0 to 255. A direction change ramps PWM down to zero, waits `reversalPauseMs` (default 100 ms), changes DIR, then ramps up. Repeating a running command does not restart the ramp. Set `rampMs` to zero to disable the ramp. PWM is an output command, not measured motor speed.
+
+`STOP`, `MOTOR OFF`, `AXIS STOP`, faults and limit activation stop the relevant PWM immediately and cancel pending ramps. Travel timeout includes ramp time. All timing is nonblocking so serial commands and limits continue to be checked during ramps.

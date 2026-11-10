@@ -29,6 +29,8 @@ namespace
                 isCommand("MOTOR FORWARD") ||
                 isCommand("MOTOR REVERSE") ||
                 isCommand("AXIS START") ||
+                isCommand("AXIS UP") ||
+                isCommand("AXIS DOWN") ||
                 isCommand("AXIS STOP");
 
         if (!known)
@@ -49,7 +51,7 @@ namespace
         }
         else if (isCommand("AXIS STOP"))
         {
-            stateMachine.stopAxis();
+            stateMachine.pauseAxis(now);
         }
         else if (isCommand("CLEAR"))
         {
@@ -63,9 +65,11 @@ namespace
         }
         else if (isCommand("STATUS"))
         {
-            const char *names[] = {"IDLE", "UP", "WAIT", "DOWN"};
+            const char *names[] = {"IDLE", "UP", "WAIT", "DOWN", "PAUSED"};
             Serial1.print("STATUS AXIS=");
             Serial1.print(names[static_cast<unsigned>(stateMachine.axisState())]);
+            Serial1.print(" DIR=");
+            Serial1.print(stateMachine.direction() == Axis::Up ? "UP" : "DOWN");
             Serial1.print(" TOP=");
             Serial1.print(stateMachine.topActive());
             Serial1.print(" BOTTOM=");
@@ -85,7 +89,16 @@ namespace
             {
                 if (!stateMachine.startCycle(now))
                 {
-                    Serial1.println("ERR AXIS_BUSY");
+                    Serial1.println("ERR AXIS_NOT_READY");
+                    return;
+                }
+            }
+            else if (isCommand("AXIS UP") || isCommand("AXIS DOWN"))
+            {
+                const Axis next = isCommand("AXIS UP") ? Axis::Up : Axis::Down;
+                if (!stateMachine.setDirection(next))
+                {
+                    Serial1.println("ERR AXIS_STOP_REQUIRED");
                     return;
                 }
             }

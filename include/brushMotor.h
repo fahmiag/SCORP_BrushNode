@@ -1,7 +1,9 @@
 #pragma once
 #include "RampedMotor.h"
 #include "Config.h"
-class BrushMotor {
+
+class BrushMotor 
+{
 public:
   void begin();
   void run(bool positive);
@@ -9,6 +11,6 @@ public:
   void update(unsigned long now);
 
 private:
-  RampedMotor motor{Config::motorPwm, Config::motorDir};
+    RampedMotor motor{Config::motorPwm, Config::motorDir};
 };
 extern BrushMotor brushMotor;

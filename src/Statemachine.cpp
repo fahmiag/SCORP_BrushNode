@@ -1,8 +1,7 @@
 #include "Statemachine.h"
-
+#include "Config.h"
 #include "AxisMotor.h"
 #include "brushMotor.h"
-
 StateMachine stateMachine;
 
 StateMachine::Limit::Limit(uint8_t pin) : pin(pin)
@@ -21,26 +20,47 @@ void StateMachine::Limit::update(unsigned long now)
         active = false;
     }
 }
-
-void StateMachine::begin()
-{
-    axisMotor.begin();
-    brushMotor.begin();
-    pinMode(Config::topLimit, INPUT_PULLUP);
-    pinMode(Config::bottomLimit, INPUT_PULLUP);
-}
-
-void StateMachine::update(unsigned long now)
-{
-    top.update(now);
-    bottom.update(now);
-    updateAxis(now);
-}
-
 void StateMachine::stopAxis()
 {
     axisMotor.stop();
     axis = Axis::Idle;
+    resumeState = Axis::Up;
+    pausedElapsed = 0;
+}
+
+void StateMachine::pauseAxis(unsigned long now)
+{
+    if (axis == Axis::Paused || axis == Axis::Idle)
+    {
+        return;
+    }
+
+    resumeState = axis;
+    pausedElapsed = now - stateSince;
+    axisMotor.stop();
+    axis = Axis::Paused;
+}
+
+bool StateMachine::setDirection(Axis next)
+{
+    if (fault || (axis != Axis::Idle && axis != Axis::Paused) ||
+        (next != Axis::Up && next != Axis::Down))
+    {
+        return false;
+    }
+
+    resumeState = next;
+    pausedElapsed = 0;
+    return true;
+}
+
+Axis StateMachine::direction() const
+{
+    if (axis == Axis::Up || axis == Axis::Down)
+    {
+        return axis;
+    }
+    return resumeState == Axis::Down ? Axis::Down : Axis::Up;
 }
 
 void StateMachine::stopAll()
@@ -56,7 +76,6 @@ void StateMachine::trip(const char *reason)
     Serial1.print("FAULT ");
     Serial1.println(reason);
 }
-
 void StateMachine::startLeg(Axis next, unsigned long now)
 {
     axisMotor.stop();
@@ -67,7 +86,7 @@ void StateMachine::startLeg(Axis next, unsigned long now)
 
 void StateMachine::updateAxis(unsigned long now)
 {
-    if (bothLimits())
+    if (top.active && bottom.active)
     {
         if (!fault)
         {
@@ -75,7 +94,6 @@ void StateMachine::updateAxis(unsigned long now)
         }
         return;
     }
-
     switch (axis)
     {
         case Axis::Up:
@@ -118,8 +136,23 @@ void StateMachine::updateAxis(unsigned long now)
             break;
 
         case Axis::Idle:
+        case Axis::Paused:
             break;
     }
+}
+
+void StateMachine::begin()
+{
+    axisMotor.begin();
+    brushMotor.begin();
+    pinMode(Config::topLimit, INPUT_PULLUP);
+    pinMode(Config::bottomLimit, INPUT_PULLUP);
+}
+void StateMachine::update(unsigned long now)
+{
+    top.update(now);
+    bottom.update(now);
+    updateAxis(now);
 }
 
 bool StateMachine::bothLimits() const
@@ -154,19 +187,32 @@ void StateMachine::clearFault()
 
 bool StateMachine::startCycle(unsigned long now)
 {
-    if (axis != Axis::Idle || fault)
+    if ((axis != Axis::Idle && axis != Axis::Paused) || fault || bothLimits())
     {
         return false;
     }
 
-    if (top.active)
+    const Axis next = resumeState;
+    if (next == Axis::Down && bottom.active)
+    {
+        return false;
+    }
+
+    if (axis == Axis::Paused && next == Axis::Wait)
+    {
+        axis = Axis::Wait;
+        stateSince = now - pausedElapsed;
+    }
+    else if (next == Axis::Up && top.active)
     {
         axis = Axis::Wait;
         stateSince = now;
     }
     else
     {
-        startLeg(Axis::Up, now);
+        startLeg(next, now);
+        stateSince = now - pausedElapsed;
     }
+    pausedElapsed = 0;
     return true;
 }

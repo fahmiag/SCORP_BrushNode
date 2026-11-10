@@ -8,7 +8,8 @@ enum class Axis
     Idle,
     Up,
     Wait,
-    Down
+    Down,
+    Paused
 };
 
 class StateMachine
@@ -17,6 +18,9 @@ public:
     void begin();
     void update(unsigned long now);
     void stopAxis();
+    void pauseAxis(unsigned long now);
+    bool setDirection(Axis direction);
+    Axis direction() const;
     void stopAll();
     void trip(const char *reason);
     void clearFault();
@@ -46,6 +50,8 @@ private:
     Axis axis = Axis::Idle;
     unsigned long stateSince = 0;
     bool fault = false;
+    Axis resumeState = Axis::Up;
+    unsigned long pausedElapsed = 0;
     Limit top{Config::topLimit};
     Limit bottom{Config::bottomLimit};
 };

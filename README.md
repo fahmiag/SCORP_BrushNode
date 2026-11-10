@@ -23,8 +23,10 @@ Connect each normally open limit switch between its input and ground. Internal p
 | `MOTOR FORWARD` | Run first motor at full PWM in forward direction |
 | `MOTOR REVERSE` | Run first motor at full PWM in reverse direction |
 | `MOTOR OFF` | Stop first motor |
-| `AXIS START` | Move up, wait 2 seconds at top, move down, stop at bottom |
-| `AXIS STOP` | Cancel axis cycle |
+| `AXIS START` | Start the cycle or resume the paused movement / top wait |
+| `AXIS STOP` | Immediately pause the axis; remember movement and elapsed time |
+| `AXIS UP` | Select upward direction while idle or paused; send `AXIS START` to move |
+| `AXIS DOWN` | Select downward direction while idle or paused; send `AXIS START` to move |
 | `STOP` | Stop both motors and cancel cycle |
 | `STATUS` | Report axis state, active limits and fault flag |
 | `CLEAR` | Stop both motors and clear fault if both limits are not active |
@@ -32,6 +34,8 @@ Connect each normally open limit switch between its input and ground. Internal p
 Send `PING` every second, including during the top wait. Any recognized command refreshes the communication timer. After 3 seconds without a recognized command, both motors stop and a fault latches. Reconnection never resumes motion automatically: send `CLEAR`, then a new motion command.
 
 Each axis travel leg has its own 120-second timeout. Travel timeout or simultaneous active limits stops both motors and latches a fault. Stops use zero PWM. On power-up both motors remain stopped. Starting a cycle while already at the top begins the 2-second wait; starting elsewhere moves upward first. Repeated `AXIS START` while busy returns an error and does not restart the timer. There is no automatic repetition.
+
+To reverse during a movement, send `AXIS STOP`, then `AXIS DOWN` or `AXIS UP`, then `AXIS START`. Direction commands do not start motion and return `ERR AXIS_STOP_REQUIRED` during an active cycle (including the automatic top wait). Selecting a direction resets the travel timer; resuming without a direction command preserves elapsed travel or wait time and excludes time spent paused. Upward movement still waits at the top and then returns down automatically. Downward movement ends at the bottom; starting downward while the bottom limit is active returns `ERR AXIS_NOT_READY`. `STOP`, `CLEAR` and faults cancel the saved movement and reset the next cycle to upward. `STATUS` includes `PAUSED` and `DIR=UP` or `DIR=DOWN`. Keep sending heartbeats while paused.
 
 Successful commands reply `OK`, status replies `STATUS ...`, invalid/rejected commands reply `ERR ...`. Faults emit `FAULT ...`, and arrival at the bottom emits `EVENT CYCLE_DONE`; the master must accommodate these asynchronous messages.
 

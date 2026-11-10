@@ -1,5 +1,6 @@
 #pragma once
 #include <Arduino.h>
+
 namespace Config {
 	constexpr uint8_t motorPwm = 9, motorDir = 8;
 	constexpr uint8_t axisPwm = 10, axisDir = 11;

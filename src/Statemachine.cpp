@@ -1,5 +1,6 @@
 #include "Statemachine.h"
 #include "Config.h"
+#include "debug.h"
 #include "AxisMotor.h"
 #include "brushMotor.h"
 StateMachine stateMachine;
@@ -73,8 +74,8 @@ void StateMachine::trip(const char *reason)
 {
     stopAll();
     fault = true;
-    Serial1.print("FAULT ");
-    Serial1.println(reason);
+    Debug::port().print("FAULT ");
+    Debug::port().println(reason);
 }
 void StateMachine::startLeg(Axis next, unsigned long now)
 {
@@ -127,7 +128,7 @@ void StateMachine::updateAxis(unsigned long now)
             if (bottom.active)
             {
                 stopAxis();
-                Serial1.println("EVENT CYCLE_DONE");
+                Debug::port().println("EVENT CYCLE_DONE");
             }
             else if (now - stateSince >= Config::travelTimeoutMs)
             {

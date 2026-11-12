@@ -7,7 +7,7 @@ namespace Config {
 	constexpr uint8_t topLimit = A0, bottomLimit = A1;
 	constexpr uint8_t forwardLevel = HIGH, upLevel = HIGH;
 	constexpr unsigned long baud = 115200;
-	constexpr unsigned long communicationTimeoutMs = 3000;
+	constexpr unsigned long communicationTimeoutMs = 30000;//3000
 	// WDT rounds up to a supported hardware interval.
 	constexpr unsigned long watchdogTimeoutMs = 1000;
 	constexpr unsigned long travelTimeoutMs = 120000;

@@ -3,6 +3,7 @@
 
 #include "App.h"
 #include "Config.h"
+#include "debug.h"
 
 namespace
 {
@@ -29,8 +30,8 @@ void setup()
     if (!WDT.begin(Config::watchdogTimeoutMs))
     {
         // Never accept motor commands without watchdog protection.
-        Serial1.begin(Config::baud, SERIAL_8N1);
-        Serial1.println("FAULT WATCHDOG_INIT");
+        Debug::begin();
+        Debug::port().println("FAULT WATCHDOG_INIT");
         while (true)
         {
             delay(100);

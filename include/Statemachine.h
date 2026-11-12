@@ -46,6 +46,7 @@ private:
 
     void startLeg(Axis next, unsigned long now);
     void updateAxis(unsigned long now);
+    void updateButtons(unsigned long now);
 
     Axis axis = Axis::Idle;
     unsigned long stateSince = 0;
@@ -54,6 +55,9 @@ private:
     unsigned long pausedElapsed = 0;
     Limit top{Config::topLimit};
     Limit bottom{Config::bottomLimit};
+    Limit upButton{Config::moveUpButton};
+    Limit downButton{Config::moveDownButton};
+    Limit stopButton{Config::moveStopButton};
 };
 
 extern StateMachine stateMachine;

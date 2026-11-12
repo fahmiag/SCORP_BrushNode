@@ -5,6 +5,7 @@ namespace Config {
 	constexpr uint8_t motorPwm = 9, motorDir = 8;
 	constexpr uint8_t axisPwm = 10, axisDir = 11;
 	constexpr uint8_t topLimit = A0, bottomLimit = A1;
+	constexpr uint8_t moveUpButton = A2, moveDownButton = A3, moveStopButton = 7;
 	constexpr uint8_t forwardLevel = HIGH, upLevel = HIGH;
 	constexpr unsigned long baud = 115200;
 	constexpr unsigned long communicationTimeoutMs = 30000;//3000

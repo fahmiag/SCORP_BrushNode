@@ -26,13 +26,13 @@ namespace
                 isCommand("STATUS") ||
                 isCommand("STOP") ||
                 isCommand("CLEAR") ||
-                isCommand("MOTOR OFF") ||
-                isCommand("MOTOR FORWARD") ||
-                isCommand("MOTOR REVERSE") ||
-                isCommand("AXIS START") ||
-                isCommand("AXIS UP") ||
-                isCommand("AXIS DOWN") ||
-                isCommand("AXIS STOP");
+                isCommand("BRUSH OFF") ||
+                isCommand("BRUSH FORWARD") ||
+                isCommand("BRUSH REVERSE") ||
+                isCommand("MOVE START") ||
+                isCommand("MOVE UP") ||
+                isCommand("MOVE DOWN") ||
+                isCommand("MOVE STOP");
 
         if (!known)
         {
@@ -46,11 +46,11 @@ namespace
         {
             stateMachine.stopAll();
         }
-        else if (isCommand("MOTOR OFF"))
+        else if (isCommand("BRUSH OFF"))
         {
             brushMotor.stop();
         }
-        else if (isCommand("AXIS STOP"))
+        else if (isCommand("MOVE STOP"))
         {
             stateMachine.pauseAxis(now);
         }
@@ -67,7 +67,7 @@ namespace
         else if (isCommand("STATUS"))
         {
             const char *names[] = {"IDLE", "UP", "WAIT", "DOWN", "PAUSED"};
-            Debug::port().print("STATUS AXIS=");
+            Debug::port().print("STATUS MOVE=");
             Debug::port().print(names[static_cast<unsigned>(stateMachine.axisState())]);
             Debug::port().print(" DIR=");
             Debug::port().print(stateMachine.direction() == Axis::Up ? "UP" : "DOWN");
@@ -86,26 +86,26 @@ namespace
                 Debug::port().println("ERR FAULT_CLEAR_REQUIRED");
                 return;
             }
-            if (isCommand("AXIS START"))
+            if (isCommand("MOVE START"))
             {
                 if (!stateMachine.startCycle(now))
                 {
-                    Debug::port().println("ERR AXIS_NOT_READY");
+                    Debug::port().println("ERR MOVE_NOT_READY");
                     return;
                 }
             }
-            else if (isCommand("AXIS UP") || isCommand("AXIS DOWN"))
+            else if (isCommand("MOVE UP") || isCommand("MOVE DOWN"))
             {
-                const Axis next = isCommand("AXIS UP") ? Axis::Up : Axis::Down;
+                const Axis next = isCommand("MOVE UP") ? Axis::Up : Axis::Down;
                 if (!stateMachine.setDirection(next))
                 {
-                    Debug::port().println("ERR AXIS_STOP_REQUIRED");
+                    Debug::port().println("ERR MOVE_STOP_REQUIRED");
                     return;
                 }
             }
             else
             {
-                brushMotor.run(isCommand("MOTOR FORWARD"));
+                brushMotor.run(isCommand("BRUSH FORWARD"));
             }
         }
         Debug::port().println("OK");

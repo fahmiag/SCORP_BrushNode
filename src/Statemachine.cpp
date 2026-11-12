@@ -148,12 +148,55 @@ void StateMachine::begin()
     brushMotor.begin();
     pinMode(Config::topLimit, INPUT_PULLUP);
     pinMode(Config::bottomLimit, INPUT_PULLUP);
+    pinMode(Config::moveUpButton, INPUT_PULLUP);
+    pinMode(Config::moveDownButton, INPUT_PULLUP);
+    pinMode(Config::moveStopButton, INPUT_PULLUP);
+    // A button held at startup must be released before it can start motion.
+    const unsigned long now = millis();
+    upButton.update(now);
+    downButton.update(now);
+    stopButton.update(now);
 }
+void StateMachine::updateButtons(unsigned long now)
+{
+    const bool wasUp = upButton.active;
+    const bool wasDown = downButton.active;
+    upButton.update(now);
+    downButton.update(now);
+    stopButton.update(now);
+
+    // Stop wins, including conflicting direction buttons. No queued starts.
+    if (stopButton.active || (upButton.active && downButton.active))
+    {
+        pauseAxis(now);
+        return;
+    }
+    if (fault || (axis != Axis::Idle && axis != Axis::Paused))
+    {
+        return;
+    }
+
+    const bool pressedUp = upButton.active && !wasUp;
+    const bool pressedDown = downButton.active && !wasDown;
+    if (!pressedUp && !pressedDown)
+    {
+        return;
+    }
+    const Axis next = pressedUp ? Axis::Up : Axis::Down;
+    // Resume the same leg without granting a fresh travel timeout.
+    if (axis == Axis::Idle || resumeState != next)
+    {
+        if (!setDirection(next)) return;
+    }
+    startCycle(now);
+}
+
 void StateMachine::update(unsigned long now)
 {
     top.update(now);
     bottom.update(now);
     updateAxis(now);
+    updateButtons(now);
 }
 
 bool StateMachine::bothLimits() const
@@ -188,6 +231,12 @@ void StateMachine::clearFault()
 
 bool StateMachine::startCycle(unsigned long now)
 {
+    // Physical stop also inhibits serial starts while held or debouncing.
+    if (stopButton.active || digitalRead(Config::moveStopButton) == LOW ||
+        (upButton.active && downButton.active))
+    {
+        return false;
+    }
     if ((axis != Axis::Idle && axis != Axis::Paused) || fault || bothLimits())
     {
         return false;

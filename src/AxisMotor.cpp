@@ -10,13 +10,13 @@ void AxisMotor::begin()
 void AxisMotor::run(bool positive)
 {
     motor.run(positive ? Config::upLevel : !Config::upLevel, Config::axisSpeed);
-    Debug::motorAction(positive ? "AXIS MOVE UP" : "AXIS MOVE DOWN");
+    Debug::motorAction(positive ? "MOVE UP" : "MOVE DOWN");
 }
 
 void AxisMotor::stop()
 {
     motor.stop();
-    Debug::motorAction("AXIS STOP");
+    Debug::motorAction("MOVE STOP");
 }
 
 void AxisMotor::update(unsigned long now)

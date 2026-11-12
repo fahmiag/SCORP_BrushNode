@@ -9,6 +9,7 @@ Arduino UNO R4 Minima, two Cytron MDD20A PWM/DIR channels, automatic-direction R
 | Motor PWM / DIR | D9 / D8 |
 | Axis PWM / DIR | D10 / D11 |
 | Top / bottom limit | A0 / A1 |
+| Move Up / Down / Stop buttons | A2 / A3 / D7 |
 | RS485 transceiver RO / DI | D0 (RX) / D1 (TX) |
 
 Connect each normally open limit switch between its input and ground. Internal pullups are enabled. Connect controller, driver logic and transceiver grounds as required by their interfaces. Use an automatic transmit-direction RS485 module; the firmware does not control DE/RE. Confirm module voltage compatibility before connecting it.
@@ -24,6 +25,8 @@ At the start of `setup()`, both PWM pins are set low before either DIR pin is co
 Hardware verification (with motors unloaded): scope both PWM inputs during power-on, reset-button hold/release, firmware upload and MCU power loss while the driver remains powered. They must remain low until an explicit motion command. To test watchdog recovery, temporarily stall the main loop after starting motion, without refreshing WDT; verify a reset within the hardware interval and zero PWM throughout reboot, with no automatic restart. Remove the stall before normal operation. A software watchdog does not stop PWM immediately when code hangs; PWM may remain active until the watchdog reset. Use an independent driver inhibit or emergency-stop circuit if that interval is unacceptable.
 
 ## Protocol
+
+Connect each normally open movement button between its pin and ground; internal pullups are enabled. A press starts upward (A2) or downward (A3) movement. Release does not stop motion. Press D7 to pause the axis; the brush is unaffected. Stop before selecting another direction. Pressing the same direction after a pause preserves elapsed travel time; selecting a different direction resets it. Upward movement retains the automatic top wait and return down. Limits and faults remain enforced. Buttons held at startup must be released before starting motion. Inputs act immediately on closure and debounce release for 20 ms. Stop or both direction buttons held together pauses movement and blocks starts; release and press a direction again to restart. Local buttons do not refresh the serial heartbeat or clear faults.
 
 115200 baud, 8 data bits, no parity, 1 stop bit. Uppercase ASCII commands terminated by LF, CR or CRLF; no node address. Master must wait for the response before transmitting again on the half-duplex bus.
 

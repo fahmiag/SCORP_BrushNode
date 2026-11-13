@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <WDT.h>
+#include "Watchdog.h"
 
 #include "App.h"
 #include "Config.h"
@@ -27,7 +27,7 @@ void setup()
     // External pull-downs must hold these inputs low before setup runs.
     holdMotorInputsLow();
 
-    if (!WDT.begin(Config::watchdogTimeoutMs))
+    if (!Watchdog::begin(Config::watchdogTimeoutMs))
     {
         // Never accept motor commands without watchdog protection.
         Debug::begin();
@@ -47,5 +47,5 @@ void loop()
 
     // Feed only after limits, motor updates and command handling complete.
     // A stalled loop must reset even if interrupts are still running.
-    WDT.refresh();
+    Watchdog::refresh();
 }

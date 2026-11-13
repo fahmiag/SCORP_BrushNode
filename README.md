@@ -1,6 +1,23 @@
 # Brush motor node
 
-Arduino UNO R4 Minima, two Cytron MDD20A PWM/DIR channels, automatic-direction RS485 transceiver. Settings are in `include/Config.h`.
+Arduino UNO R3 or UNO R4 Minima, two Cytron MDD20A PWM/DIR channels, automatic-direction RS485 transceiver. Settings are in `include/Config.h`.
+
+## Board selection and serial mode
+
+Select `uno_r3` or `uno_r4_minima` in PlatformIO's project tasks for Build/Upload. The default is R4 Minima. From a PlatformIO terminal:
+
+```sh
+pio run -e uno_r3
+pio run -e uno_r4_minima
+pio run -e uno_r3 -t upload
+pio run -e uno_r4_minima -t upload
+```
+
+The pin assignments below are the same on both boards. Each board needs its own compiled firmware. PWM frequency can differ between boards; verify motor behavior on each.
+
+`include/debug.h` defaults to `DEBUG_USE_USB_SERIAL = 1` for the USB Serial Monitor, with communication timeout disabled and motor action logging enabled. Set it to `0` for the external RS485 controller: this enables the communication timeout and suppresses debug motor logs. These macros can also be overridden using PlatformIO `build_flags = -DDEBUG_USE_USB_SERIAL=0`.
+
+R4 uses `Serial` for USB and `Serial1` for D0/D1. R3 uses `Serial` for both USB and D0/D1, so these cannot serve as independent channels. Disconnect/isolate the RS485 transceiver during R3 uploads and avoid simultaneous USB-host and RS485 transmissions. Controller mode still uses the D0/D1 wiring below.
 
 ## Placeholder wiring
 
@@ -16,7 +33,7 @@ Connect each normally open limit switch between its input and ground. Internal p
 
 ## Watchdog and reset/startup inputs
 
-The UNO R4 hardware watchdog starts after the motor control pins are driven low, before application initialization. `Config::watchdogTimeoutMs` requests 1000 ms; the WDT library rounds up to a supported hardware interval. Only a completed application loop refreshes the watchdog. A stalled loop causes a hardware reset; the communication timeout remains a separate fault mechanism. If watchdog initialization fails, firmware reports `FAULT WATCHDOG_INIT` and stays stopped without accepting commands. After a reset, motion is not restored: a new command is required.
+The hardware watchdog starts after the motor control pins are driven low, before application initialization. `Config::watchdogTimeoutMs` requests 1000 ms. R4 uses the core WDT library; R3 uses the AVR hardware watchdog and selects the next supported nominal interval (maximum 8000 ms). Actual watchdog timing depends on the hardware oscillator. R3 clears the watchdog reset flag and disables the watchdog early in application startup before enabling the configured interval in `setup()`. Use a watchdog-compatible bootloader, such as standard Uno Optiboot; older clone bootloaders may loop after watchdog resets and must be verified or updated. Only a completed application loop refreshes the watchdog. A stalled loop causes a hardware reset; the communication timeout remains a separate fault mechanism. If watchdog initialization fails, firmware reports `FAULT WATCHDOG_INIT` and stays stopped without accepting commands. After a reset, motion is not restored: a new command is required.
 
 Firmware cannot drive pins during reset, bootloader execution or loss of MCU power. Fit an external 10 kΩ pull-down from **each driver PWM and DIR input** to driver signal ground, preferably at the driver connector (four resistors total). PWM low is the required stop command; DIR low provides a defined direction while stopped. Verify these pull-downs keep the actual driver inputs below its specified low threshold with the MCU disconnected and with either supply powered first. Do not rely on software or MCU internal pulls for the reset interval. For the MDD20A, PWM low brakes the motor; it does not disconnect motor power.
 

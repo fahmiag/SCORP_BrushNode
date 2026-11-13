@@ -3,26 +3,36 @@
 #include <Arduino.h>
 #include "Config.h"
 
-// 1: USB Serial Monitor; 0: external controller on Serial1 (RX/TX).
+// 1: USB Serial Monitor; 0: external controller on D0/D1.
+// R3 shares Serial with USB; R4 uses Serial1 for D0/D1.
+#ifndef DEBUG_USE_USB_SERIAL
 #define DEBUG_USE_USB_SERIAL 1
+#endif
 
-// These options apply only to USB debug; Serial1 keeps its timeout and protocol.
+// These options apply only to USB debug; controller mode keeps its timeout/protocol.
+#ifndef DEBUG_DISABLE_COMM_TIMEOUT
 #define DEBUG_DISABLE_COMM_TIMEOUT 1
+#endif
+#ifndef DEBUG_LOG_MOTOR_ACTIONS
 #define DEBUG_LOG_MOTOR_ACTIONS 1
+#endif
 
 namespace Debug
 {
     constexpr bool communicationTimeoutEnabled =
         !(DEBUG_USE_USB_SERIAL && DEBUG_DISABLE_COMM_TIMEOUT);
 
-    inline auto &port()
+#if DEBUG_USE_USB_SERIAL || defined(ARDUINO_AVR_UNO)
+    inline decltype(Serial) &port()
     {
-#if DEBUG_USE_USB_SERIAL
         return Serial;
-#else
-        return Serial1;
-#endif
     }
+#else
+    inline decltype(Serial1) &port()
+    {
+        return Serial1;
+    }
+#endif
 
     inline void begin()
     {

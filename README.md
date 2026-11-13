@@ -4,7 +4,16 @@ Arduino UNO R3 or UNO R4 Minima, two Cytron MDD20A PWM/DIR channels, automatic-d
 
 ## Board selection and serial mode
 
-Select `uno_r3` or `uno_r4_minima` in PlatformIO's project tasks for Build/Upload. The default is R4 Minima. From a PlatformIO terminal:
+In VS Code, open PlatformIO > PROJECT TASKS, expand the environment below, then choose General > Build or Upload. The default is R4 Minima in controller mode.
+
+| Environment | Board | Mode | Communication timeout | Motor action logs |
+| --- | --- | --- | --- | --- |
+| `uno_r3` | Uno R3 | Controller (D0/D1) | Enabled | Off |
+| `uno_r4_minima` | Uno R4 Minima | Controller (D0/D1) | Enabled | Off |
+| `uno_r3_debug` | Uno R3 | USB debug | Disabled | On |
+| `uno_r4_minima_debug` | Uno R4 Minima | USB debug | Disabled | On |
+
+Set `default_envs` in `platformio.ini` to the desired environment for the toolbar Build/Upload buttons. From a PlatformIO terminal:
 
 ```sh
 pio run -e uno_r3
@@ -15,7 +24,7 @@ pio run -e uno_r4_minima -t upload
 
 The pin assignments below are the same on both boards. Each board needs its own compiled firmware. PWM frequency can differ between boards; verify motor behavior on each.
 
-`include/debug.h` defaults to `DEBUG_USE_USB_SERIAL = 1` for the USB Serial Monitor, with communication timeout disabled and motor action logging enabled. Set it to `0` for the external RS485 controller: this enables the communication timeout and suppresses debug motor logs. These macros can also be overridden using PlatformIO `build_flags = -DDEBUG_USE_USB_SERIAL=0`.
+Operating mode is chosen at build time using `APP_USB_DEBUG` in `platformio.ini`: `0` selects controller mode, `1` selects USB debug. Select an environment instead of editing `include/debug.h`. The former `DEBUG_USE_USB_SERIAL`, `DEBUG_DISABLE_COMM_TIMEOUT` and `DEBUG_LOG_MOTOR_ACTIONS` settings are replaced by this single mode setting. Watchdog, limits and travel timeout remain enabled in both modes. In controller mode the communication timeout starts after the first recognized command; local buttons do not establish a serial connection or refresh its timer.
 
 R4 uses `Serial` for USB and `Serial1` for D0/D1. R3 uses `Serial` for both USB and D0/D1, so these cannot serve as independent channels. Disconnect/isolate the RS485 transceiver during R3 uploads and avoid simultaneous USB-host and RS485 transmissions. Controller mode still uses the D0/D1 wiring below.
 
@@ -29,7 +38,11 @@ R4 uses `Serial` for USB and `Serial1` for D0/D1. R3 uses `Serial` for both USB 
 | Move Up / Down / Stop buttons | A2 / A3 / D7 |
 | RS485 transceiver RO / DI | D0 (RX) / D1 (TX) |
 
-Connect each normally open limit switch between its input and ground. Internal pullups are enabled. Connect controller, driver logic and transceiver grounds as required by their interfaces. Use an automatic transmit-direction RS485 module; the firmware does not control DE/RE. Confirm module voltage compatibility before connecting it.
+Connect each limit switch using its **COM and NC (normally closed)** terminals: COM to ground, NC to A0 (top) or A1 (bottom). Leave NO disconnected. Internal pullups are enabled. An unactuated switch closes the circuit to ground (LOW, inactive); actuating it opens the circuit (HIGH, active). A disconnected wire also reads as an active limit. Limit activation is immediate; returning to inactive is debounced for 20 ms. Both limits are sampled during startup.
+
+The firmware cannot distinguish an actuated limit from a broken wire. A single open circuit follows the normal limit behavior, including the top wait and return downward; both open circuits cause `BOTH_LIMITS`. A short to ground can mask limit activation. With motors unloaded, verify `STATUS` reports `TOP=0 BOTTOM=0` with both switches unactuated, the corresponding field becomes `1` when each switch is actuated or disconnected, and opening both latches `BOTH_LIMITS`. Movement buttons remain normally open.
+
+Connect controller, driver logic and transceiver grounds as required by their interfaces. Use an automatic transmit-direction RS485 module; the firmware does not control DE/RE. Confirm module voltage compatibility before connecting it.
 
 ## Watchdog and reset/startup inputs
 
@@ -58,7 +71,7 @@ Connect each normally open movement button between its pin and ground; internal 
 | `MOVE UP` | Select upward direction while idle or paused; send `MOVE START` to move |
 | `MOVE DOWN` | Select downward direction while idle or paused; send `MOVE START` to move |
 | `STOP` | Stop both motors and cancel cycle |
-| `STATUS` | Report axis state, active limits and fault flag |
+| `STATUS` | Report axis state, active limits, fault flag, latched fault reason and operating mode |
 | `CLEAR` | Stop both motors and clear fault if both limits are not active |
 
 Send `PING` every second, including during the top wait. Any recognized command refreshes the communication timer. After 3 seconds without a recognized command, both motors stop and a fault latches. Reconnection never resumes motion automatically: send `CLEAR`, then a new motion command.
@@ -69,7 +82,17 @@ To reverse during a movement, send `MOVE STOP`, then `MOVE DOWN` or `MOVE UP`, t
 
 Successful commands reply `OK`, status replies `STATUS ...`, invalid/rejected commands reply `ERR ...`. Faults emit `FAULT ...`, and arrival at the bottom emits `EVENT CYCLE_DONE`; the master must accommodate these asynchronous messages.
 
-Verify direction polarity with unloaded motors before operation; change `forwardLevel` and `upLevel` if required. Both motors ramp to configurable target PWM (default 255). Physical travel, wiring, motor reversal and transceiver timing require hardware verification. Normally open switches cannot reveal a broken wire; the travel timeout bounds a missing-switch run.
+`STATUS` keeps its existing fields and appends `REASON` and `MODE`, for example:
+
+```text
+STATUS MOVE=IDLE DIR=UP TOP=0 BOTTOM=0 FAULT=1 REASON=UP_TIMEOUT MODE=CONTROLLER
+```
+
+`REASON` is `NONE`, `BOTH_LIMITS`, `UP_TIMEOUT`, `DOWN_TIMEOUT` or `COMM_TIMEOUT`. The first fault reason remains latched until a successful `CLEAR`; subsequent trips still stop both motors but do not replace the reason or repeat the fault notification. `STOP`, reconnecting and querying status do not clear it. `CLEAR` refuses while both limits are active. Fault history is held in RAM and resets on reboot. `MODE` is `CONTROLLER` or `USB_DEBUG`. Watchdog initialization failure remains a separate startup `FAULT WATCHDOG_INIT` message, because the application cannot accept commands in that state.
+
+To verify on hardware with unloaded motors: query `STATUS` in each build and check `MODE`; in controller mode send `PING`, wait beyond `communicationTimeoutMs`, then check `FAULT=1 REASON=COMM_TIMEOUT`. In USB debug, the same wait must not cause a communication fault. Trigger both limits and check `BOTH_LIMITS`; allow a later communication timeout and confirm the original reason remains. `STOP` must preserve that reason, `CLEAR` must refuse with both limits active, and releasing the limits then sending `CLEAR` must restore `FAULT=0 REASON=NONE`. Verify each travel timeout reports its corresponding reason.
+
+Verify direction polarity with unloaded motors before operation; change `forwardLevel` and `upLevel` if required. Both motors ramp to configurable target PWM (default 255). Physical travel, wiring, motor reversal and transceiver timing require hardware verification. Normally closed limits treat an open wire as active; the travel timeout also bounds a run if a switch fails to open.
 
 ## Source layout and ramp settings
 

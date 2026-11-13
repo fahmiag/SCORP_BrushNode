@@ -12,6 +12,15 @@ enum class Axis
     Paused
 };
 
+enum class Fault
+{
+    None,
+    BothLimits,
+    UpTimeout,
+    DownTimeout,
+    CommunicationTimeout
+};
+
 class StateMachine
 {
 public:
@@ -22,7 +31,7 @@ public:
     bool setDirection(Axis direction);
     Axis direction() const;
     void stopAll();
-    void trip(const char *reason);
+    void trip(Fault reason);
     void clearFault();
     bool startCycle(unsigned long now);
 
@@ -31,17 +40,19 @@ public:
     bool bottomActive() const;
     Axis axisState() const;
     bool hasFault() const;
+    const char *faultReason() const;
 
 private:
-    // Stop immediately on switch closure; debounce release for 20 ms.
+    // Activate immediately; debounce return to the inactive level for 20 ms.
     struct Limit
     {
-        explicit Limit(uint8_t pin);
+        explicit Limit(uint8_t pin, uint8_t activeLevel = LOW);
         void update(unsigned long now);
 
         uint8_t pin;
+        uint8_t activeLevel;
         bool active = false;
-        unsigned long lastLow = 0;
+        unsigned long lastActive = 0;
     };
 
     void startLeg(Axis next, unsigned long now);
@@ -50,11 +61,12 @@ private:
 
     Axis axis = Axis::Idle;
     unsigned long stateSince = 0;
-    bool fault = false;
+    Fault fault = Fault::None;
     Axis resumeState = Axis::Up;
     unsigned long pausedElapsed = 0;
-    Limit top{Config::topLimit};
-    Limit bottom{Config::bottomLimit};
+    // NC limits open when actuated; INPUT_PULLUP then reads HIGH.
+    Limit top{Config::topLimit, HIGH};
+    Limit bottom{Config::bottomLimit, HIGH};
     Limit upButton{Config::moveUpButton};
     Limit downButton{Config::moveDownButton};
     Limit stopButton{Config::moveStopButton};

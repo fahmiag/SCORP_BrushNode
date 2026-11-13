@@ -76,7 +76,11 @@ namespace
             Debug::port().print(" BOTTOM=");
             Debug::port().print(stateMachine.bottomActive());
             Debug::port().print(" FAULT=");
-            Debug::port().println(stateMachine.hasFault());
+            Debug::port().print(stateMachine.hasFault());
+            Debug::port().print(" REASON=");
+            Debug::port().print(stateMachine.faultReason());
+            Debug::port().print(" MODE=");
+            Debug::port().println(Debug::modeName);
             return;
         }
         else if (!isCommand("PING"))
@@ -128,7 +132,7 @@ void App::update()
         now - lastCommand >= Config::communicationTimeoutMs)
     {
         connected = false;
-        stateMachine.trip("COMM_TIMEOUT");
+        stateMachine.trip(Fault::CommunicationTimeout);
     }
 
     // State transitions can reset ramp timestamps; take a fresh time afterward.

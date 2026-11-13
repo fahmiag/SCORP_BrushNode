@@ -5,18 +5,19 @@
 #include "brushMotor.h"
 StateMachine stateMachine;
 
-StateMachine::Limit::Limit(uint8_t pin) : pin(pin)
+StateMachine::Limit::Limit(uint8_t pin, uint8_t activeLevel)
+    : pin(pin), activeLevel(activeLevel)
 {
 }
 
 void StateMachine::Limit::update(unsigned long now)
 {
-    if (digitalRead(pin) == LOW)
+    if (digitalRead(pin) == activeLevel)
     {
         active = true;
-        lastLow = now;
+        lastActive = now;
     }
-    else if (now - lastLow >= 20)
+    else if (now - lastActive >= 20)
     {
         active = false;
     }
@@ -44,7 +45,7 @@ void StateMachine::pauseAxis(unsigned long now)
 
 bool StateMachine::setDirection(Axis next)
 {
-    if (fault || (axis != Axis::Idle && axis != Axis::Paused) ||
+    if (hasFault() || (axis != Axis::Idle && axis != Axis::Paused) ||
         (next != Axis::Up && next != Axis::Down))
     {
         return false;
@@ -70,12 +71,13 @@ void StateMachine::stopAll()
     stopAxis();
 }
 
-void StateMachine::trip(const char *reason)
+void StateMachine::trip(Fault reason)
 {
     stopAll();
-    fault = true;
+    if (hasFault()) return; // Preserve the first cause until CLEAR succeeds.
+    fault = reason;
     Debug::port().print("FAULT ");
-    Debug::port().println(reason);
+    Debug::port().println(faultReason());
 }
 void StateMachine::startLeg(Axis next, unsigned long now)
 {
@@ -89,9 +91,9 @@ void StateMachine::updateAxis(unsigned long now)
 {
     if (top.active && bottom.active)
     {
-        if (!fault)
+        if (!hasFault())
         {
-            trip("BOTH_LIMITS");
+            trip(Fault::BothLimits);
         }
         return;
     }
@@ -106,7 +108,7 @@ void StateMachine::updateAxis(unsigned long now)
             }
             else if (now - stateSince >= Config::travelTimeoutMs)
             {
-                trip("UP_TIMEOUT");
+                trip(Fault::UpTimeout);
             }
             break;
 
@@ -132,7 +134,7 @@ void StateMachine::updateAxis(unsigned long now)
             }
             else if (now - stateSince >= Config::travelTimeoutMs)
             {
-                trip("DOWN_TIMEOUT");
+                trip(Fault::DownTimeout);
             }
             break;
 
@@ -153,6 +155,8 @@ void StateMachine::begin()
     pinMode(Config::moveStopButton, INPUT_PULLUP);
     // A button held at startup must be released before it can start motion.
     const unsigned long now = millis();
+    top.update(now);
+    bottom.update(now);
     upButton.update(now);
     downButton.update(now);
     stopButton.update(now);
@@ -171,7 +175,7 @@ void StateMachine::updateButtons(unsigned long now)
         pauseAxis(now);
         return;
     }
-    if (fault || (axis != Axis::Idle && axis != Axis::Paused))
+    if (hasFault() || (axis != Axis::Idle && axis != Axis::Paused))
     {
         return;
     }
@@ -221,12 +225,24 @@ Axis StateMachine::axisState() const
 
 bool StateMachine::hasFault() const
 {
-    return fault;
+    return fault != Fault::None;
 }
 
 void StateMachine::clearFault()
 {
-    fault = false;
+    fault = Fault::None;
+}
+
+const char *StateMachine::faultReason() const
+{
+    switch (fault)
+    {
+        case Fault::BothLimits: return "BOTH_LIMITS";
+        case Fault::UpTimeout: return "UP_TIMEOUT";
+        case Fault::DownTimeout: return "DOWN_TIMEOUT";
+        case Fault::CommunicationTimeout: return "COMM_TIMEOUT";
+        default: return "NONE";
+    }
 }
 
 bool StateMachine::startCycle(unsigned long now)
@@ -237,7 +253,7 @@ bool StateMachine::startCycle(unsigned long now)
     {
         return false;
     }
-    if ((axis != Axis::Idle && axis != Axis::Paused) || fault || bothLimits())
+    if ((axis != Axis::Idle && axis != Axis::Paused) || hasFault() || bothLimits())
     {
         return false;
     }

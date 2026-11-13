@@ -8,7 +8,7 @@ namespace Config {
 	constexpr uint8_t moveUpButton = A2, moveDownButton = A3, moveStopButton = 7;
 	constexpr uint8_t forwardLevel = HIGH, upLevel = HIGH;
 	constexpr unsigned long baud = 115200;
-	constexpr unsigned long communicationTimeoutMs = 30000;//3000
+	constexpr unsigned long communicationTimeoutMs = 3000;//3000
 	// Watchdog uses a supported hardware interval (R3: up to 8000 ms).
 	constexpr unsigned long watchdogTimeoutMs = 1000;
 	constexpr unsigned long travelTimeoutMs = 120000;

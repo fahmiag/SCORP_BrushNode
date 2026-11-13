@@ -50,22 +50,22 @@ Connect each normally open movement button between its pin and ground; internal 
 | Command | Action |
 | --- | --- |
 | `PING` | Heartbeat; replies `OK` |
-| `MOTOR FORWARD` | Run first motor at full PWM in forward direction |
-| `MOTOR REVERSE` | Run first motor at full PWM in reverse direction |
-| `MOTOR OFF` | Stop first motor |
-| `AXIS START` | Start the cycle or resume the paused movement / top wait |
-| `AXIS STOP` | Immediately pause the axis; remember movement and elapsed time |
-| `AXIS UP` | Select upward direction while idle or paused; send `AXIS START` to move |
-| `AXIS DOWN` | Select downward direction while idle or paused; send `AXIS START` to move |
+| `BRUSH FORWARD` | Run brush motor at full PWM in forward direction |
+| `BRUSH REVERSE` | Run brush motor at full PWM in reverse direction |
+| `BRUSH OFF` | Stop brush motor |
+| `MOVE START` | Start the cycle or resume the paused movement / top wait |
+| `MOVE STOP` | Immediately pause the axis; remember movement and elapsed time |
+| `MOVE UP` | Select upward direction while idle or paused; send `MOVE START` to move |
+| `MOVE DOWN` | Select downward direction while idle or paused; send `MOVE START` to move |
 | `STOP` | Stop both motors and cancel cycle |
 | `STATUS` | Report axis state, active limits and fault flag |
 | `CLEAR` | Stop both motors and clear fault if both limits are not active |
 
 Send `PING` every second, including during the top wait. Any recognized command refreshes the communication timer. After 3 seconds without a recognized command, both motors stop and a fault latches. Reconnection never resumes motion automatically: send `CLEAR`, then a new motion command.
 
-Each axis travel leg has its own 120-second timeout. Travel timeout or simultaneous active limits stops both motors and latches a fault. Stops use zero PWM. On power-up both motors remain stopped. Starting a cycle while already at the top begins the 2-second wait; starting elsewhere moves upward first. Repeated `AXIS START` while busy returns an error and does not restart the timer. There is no automatic repetition.
+Each axis travel leg has its own 120-second timeout. Travel timeout or simultaneous active limits stops both motors and latches a fault. Stops use zero PWM. On power-up both motors remain stopped. Starting a cycle while already at the top begins the 2-second wait; starting elsewhere moves upward first. Repeated `MOVE START` while busy returns an error and does not restart the timer. There is no automatic repetition.
 
-To reverse during a movement, send `AXIS STOP`, then `AXIS DOWN` or `AXIS UP`, then `AXIS START`. Direction commands do not start motion and return `ERR AXIS_STOP_REQUIRED` during an active cycle (including the automatic top wait). Selecting a direction resets the travel timer; resuming without a direction command preserves elapsed travel or wait time and excludes time spent paused. Upward movement still waits at the top and then returns down automatically. Downward movement ends at the bottom; starting downward while the bottom limit is active returns `ERR AXIS_NOT_READY`. `STOP`, `CLEAR` and faults cancel the saved movement and reset the next cycle to upward. `STATUS` includes `PAUSED` and `DIR=UP` or `DIR=DOWN`. Keep sending heartbeats while paused.
+To reverse during a movement, send `MOVE STOP`, then `MOVE DOWN` or `MOVE UP`, then `MOVE START`. Direction commands do not start motion and return `ERR MOVE_STOP_REQUIRED` during an active cycle (including the automatic top wait). Selecting a direction resets the travel timer; resuming without a direction command preserves elapsed travel or wait time and excludes time spent paused. Upward movement still waits at the top and then returns down automatically. Downward movement ends at the bottom; starting downward while the bottom limit is active returns `ERR MOVE_NOT_READY`. `STOP`, `CLEAR` and faults cancel the saved movement and reset the next cycle to upward. `STATUS` includes `PAUSED` and `DIR=UP` or `DIR=DOWN`. Keep sending heartbeats while paused.
 
 Successful commands reply `OK`, status replies `STATUS ...`, invalid/rejected commands reply `ERR ...`. Faults emit `FAULT ...`, and arrival at the bottom emits `EVENT CYCLE_DONE`; the master must accommodate these asynchronous messages.
 
@@ -82,4 +82,4 @@ Verify direction polarity with unloaded motors before operation; change `forward
 
 Both motors ramp linearly from zero to full PWM over `rampMs` (default 1000 ms). `axisSpeed` and `brushSpeed` set targets from 0 to 255. A direction change ramps PWM down to zero, waits `reversalPauseMs` (default 100 ms), changes DIR, then ramps up. Repeating a running command does not restart the ramp. Set `rampMs` to zero to disable the ramp. PWM is an output command, not measured motor speed.
 
-`STOP`, `MOTOR OFF`, `AXIS STOP`, faults and limit activation stop the relevant PWM immediately and cancel pending ramps. Travel timeout includes ramp time. All timing is nonblocking so serial commands and limits continue to be checked during ramps.
+`STOP`, `BRUSH OFF`, `MOVE STOP`, faults and limit activation stop the relevant PWM immediately and cancel pending ramps. Travel timeout includes ramp time. All timing is nonblocking so serial commands and limits continue to be checked during ramps.
